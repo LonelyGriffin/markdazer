@@ -1,4 +1,4 @@
-package com.markdazer;
+package com.lonelygriffin.markdazer;
 
 import com.facebook.react.ReactActivity;
 
