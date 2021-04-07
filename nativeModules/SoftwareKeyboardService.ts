@@ -1,10 +1,20 @@
 import {NativeEventEmitter, NativeModules} from 'react-native';
 
-export type SoftwareKeyboardEvent = {
-  type: 'changed';
-  text: string;
-  cursor: number;
-};
+export type SoftwareKeyboardEvent =
+  | {
+      type: 'changed';
+      text: string;
+      cursor: number;
+    }
+  | {
+      type: 'lineBreak';
+      before: string;
+      text: string;
+      cursor: number;
+    }
+  | {
+      type: 'backspaceOnTextBegin';
+    };
 
 export type SoftwareKeyboardAction =
   | {
@@ -18,7 +28,12 @@ export type SoftwareKeyboardAction =
 
 type Subscriber = (event: SoftwareKeyboardEvent) => void;
 
-class SoftwareKeyboardService {
+export interface ISoftwareKeyboardService {
+  subscribe(subscriber: Subscriber): () => void;
+  dispatch(action: SoftwareKeyboardAction): void;
+}
+
+class SoftwareKeyboardService implements ISoftwareKeyboardService {
   private nativeModule: any;
   private subscribers: Subscriber[] = [];
   constructor() {
@@ -35,9 +50,19 @@ class SoftwareKeyboardService {
     };
   }
   dispatch(action: SoftwareKeyboardAction) {
-    console.log(NativeModules);
     NativeModules.SoftwareKeyboardService.dispatch(action);
   }
 }
 
-export default new SoftwareKeyboardService();
+export class SoftwareKeyboardServiceMock implements ISoftwareKeyboardService {
+  public subscribers: Subscriber[] = [];
+  subscribe(subscriber: Subscriber) {
+    this.subscribers.push(subscriber);
+    return () => {
+      this.subscribers = this.subscribers.filter((sb) => sb !== subscriber);
+    };
+  }
+  dispatch(action: SoftwareKeyboardAction) {}
+}
+
+export default SoftwareKeyboardService;

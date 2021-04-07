@@ -20,36 +20,28 @@ import {
   NativeModules,
 } from 'react-native';
 import SoftwareKeyboardService from './nativeModules/SoftwareKeyboardService';
+import Editor from './src/editor';
 
 declare const global: {HermesInternal: null | {}};
 
 const App = () => {
-  useEffect(() => {
-    return SoftwareKeyboardService.subscribe((event) => {
-      console.log(event);
-    });
-  });
-  const onChange = () => {
-    SoftwareKeyboardService.dispatch({
-      type: 'change',
-      text: 'text',
-      cursor: 1,
-    });
-  };
-  const onOpen = () => {
-    SoftwareKeyboardService.dispatch({
-      type: 'open',
-    });
-  };
   return (
-    <>
-      <StatusBar barStyle="dark-content" />
-      <SafeAreaView>
-        <Button title="change" onPress={onChange} />
-        <Button title="open" onPress={onOpen} />
-      </SafeAreaView>
-    </>
+    <View style={styles.container}>
+      <StatusBar />
+      <Editor />
+    </View>
   );
 };
+
+const styles = StyleSheet.create({
+  container: {
+    width: '100%',
+    flex: 1,
+    backgroundColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingTop: 30,
+  },
+});
 
 export default App;

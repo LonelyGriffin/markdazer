@@ -33,9 +33,12 @@ public class MainActivity extends ReactActivity {
 
     EditText editText = new EditText(this);
     editText.setText("");
+    editText.setMaxLines(2);
 
     FrameLayout.LayoutParams frameLayout = new FrameLayout.LayoutParams(1000, 100);
     frameLayout.setMargins(0, 500, 0, 0);
+//    frameLayout.setMargins(10000, 10000, 0, 0);
+
     editText.setLayoutParams(frameLayout);
 
     FrameLayout rootLayout = (FrameLayout)findViewById(android.R.id.content);
