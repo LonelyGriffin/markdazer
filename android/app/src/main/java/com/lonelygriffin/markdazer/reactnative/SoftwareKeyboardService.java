@@ -29,9 +29,7 @@ public class SoftwareKeyboardService extends ReactContextBaseJavaModule {
     private EditText editText;
     private final ReactApplicationContext context;
     private final InputMethodManager imm;
-    private int cursorState = 0;
-    private String textState = "";
-    private final int DEBOUNCE = 16;
+    private final SoftwareKeyboardTextWatcher textWatcher;
 
     // dot because its separate sentences and in this way affect keyboard autocompletion right
     private final String BACKSPACE_ON_TEXT_BEGIN_FLAG = ".";
@@ -40,6 +38,7 @@ public class SoftwareKeyboardService extends ReactContextBaseJavaModule {
         super(context);
         this.context = context;
         this.imm = (InputMethodManager) this.context.getSystemService(Context.INPUT_METHOD_SERVICE);
+        this.textWatcher = new SoftwareKeyboardTextWatcher(handleEditTextChange);
     }
 
     @NonNull
@@ -57,7 +56,7 @@ public class SoftwareKeyboardService extends ReactContextBaseJavaModule {
     }
 
     private void changeAction(@NotNull ReadableMap action) {
-        setState(withBackspaceOnTextBeginFlag(action.getString("text")),action.getInt("cursor") + BACKSPACE_ON_TEXT_BEGIN_FLAG.length());
+        setEditTextState(withBackspaceOnTextBeginFlag(action.getString("text")),action.getInt("cursor") + BACKSPACE_ON_TEXT_BEGIN_FLAG.length());
     }
 
     private void openAction() {
@@ -68,38 +67,25 @@ public class SoftwareKeyboardService extends ReactContextBaseJavaModule {
     }
     public void initialize(EditText editText) {
         this.editText = editText;
-        runOnUiThread(() -> setState(BACKSPACE_ON_TEXT_BEGIN_FLAG, BACKSPACE_ON_TEXT_BEGIN_FLAG.length()));
-
-
-
-        this.editText.addTextChangedListener(new TextWatcher() {
-            @Override
-            public void beforeTextChanged(CharSequence s, int start, int count, int after) {
-            }
-
-            @Override
-            public void onTextChanged(CharSequence s, int start, int before, int count) {
-            }
-
-            @Override
-            public void afterTextChanged(Editable s) {
-                Debouncer.debounce("APP", handleEditTextChange, DEBOUNCE);
-            }
-        });
+        this.editText.addTextChangedListener(textWatcher);
+        runOnUiThread(() -> setEditTextState(BACKSPACE_ON_TEXT_BEGIN_FLAG, BACKSPACE_ON_TEXT_BEGIN_FLAG.length()));
     }
 
     private final Runnable handleEditTextChange = new Runnable() {
         @Override
         public void run() {
+            int cursorState = editText.getSelectionStart();
+            String textState = editText.getText().toString();
+
             if (editText.getText().toString().contains("\n")) {
-                Debouncer.debounce("breakLineProcessing", breakLineProcessing, 100);
+                breakLineProcessing.run();
                 return;
             }
 
             if (cursorState < BACKSPACE_ON_TEXT_BEGIN_FLAG.length()) {
                 WritableMap event = Arguments.createMap();
                 event.putString("type", "backspaceOnTextBegin");
-                setState(withBackspaceOnTextBeginFlag(textState.substring(cursorState)), BACKSPACE_ON_TEXT_BEGIN_FLAG.length());
+                setEditTextState(withBackspaceOnTextBeginFlag(textState.substring(cursorState)), BACKSPACE_ON_TEXT_BEGIN_FLAG.length());
                 sendEvent(event);
                 return;
             }
@@ -108,10 +94,8 @@ public class SoftwareKeyboardService extends ReactContextBaseJavaModule {
             event.putString("type", "changed");
             event.putString("text", withoutBackspaceOnTextBeginFlag(editText.getText().toString()));
             event.putInt("cursor", cursor);
-            setState(editText.getText().toString(), editText.getSelectionStart());
-            Debouncer.debounce("TEst",() -> {
-                sendEvent(event);
-            } , DEBOUNCE * 2);
+            setEditTextState(editText.getText().toString(), editText.getSelectionStart());
+            sendEvent(event);
 
         }
     };
@@ -126,7 +110,7 @@ public class SoftwareKeyboardService extends ReactContextBaseJavaModule {
             String[] beforeAndAfter = text.split("\n");
             String before = beforeAndAfter.length > 0 ? beforeAndAfter[0] : "";
             String after = beforeAndAfter.length > 1 ? beforeAndAfter[1] : "";
-            setState(withBackspaceOnTextBeginFlag(after), BACKSPACE_ON_TEXT_BEGIN_FLAG.length());
+            setEditTextState(withBackspaceOnTextBeginFlag(after), BACKSPACE_ON_TEXT_BEGIN_FLAG.length());
             event.putString("type", "lineBreak");
             event.putString("beforeText", before);
             event.putString("text", after);
@@ -156,17 +140,10 @@ public class SoftwareKeyboardService extends ReactContextBaseJavaModule {
         emitter.emit("EVENT", event);
     }
 
-    private void setState(@NotNull String text, int cursor) {
-        String prevText = textState;
-        int prevCursor = cursorState;
-
-        textState = text;
-        cursorState = cursor;
-        if (!text.equals(prevText)) {
-            editText.setText(text);
-        }
-        if( cursor != prevCursor) {
-            editText.setSelection(cursor);
-        }
+    private void setEditTextState(String text, int cursor) {
+        editText.removeTextChangedListener(textWatcher);
+        editText.setText(text);
+        editText.setSelection(cursor);
+        editText.addTextChangedListener(textWatcher);
     }
 }
